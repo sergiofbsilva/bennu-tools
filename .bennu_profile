@@ -1,0 +1,106 @@
+WORKSPACE_DIR=/home/sfbs/workspace/git2/
+LOG=/home/sfbs/logs
+APP=dot
+
+function goto() {
+	OUTPUT=`find $WORKSPACE_DIR -name 'pom.xml' | grep "/$1/"`
+	if [ -z "$OUTPUT" ]; then
+		echo "$1 is not a module."
+		return 1;
+	fi
+	POM=`realpath $OUTPUT`
+	DIR=`echo $POM | sed 's/\/pom.xml//'`
+	cd $DIR
+}
+
+function cptom() {
+	CWD=`basename $PWD`
+	rm $CATALINA_HOME/webapps/$APP/WEB-INF/lib/$CWD*.jar
+	cp target/$CWD*.jar $CATALINA_HOME/webapps/$APP/WEB-INF/lib/
+}
+
+_goto() {
+	local cur prev opts
+	dirs=`find $WORKSPACE_DIR -name 'pom.xml' | sed 's/\/pom.xml//g'`
+	COMPREPLY=()
+	cur="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[COMP_CWORD-1]}"
+	opts=`for d in $dirs; do basename $d; done`
+	COMPREPLY=( $(compgen -W "${opts}" ${cur}) )
+}
+
+complete -F _goto goto
+
+xpto () {
+	CWD=`basename $PWD`;
+	echo $CWD;	
+}
+
+dodeps() {
+	LOCALMODULE=`basename $PWD`;
+	DATE=`date +%y%m%d_%H%M%S`;
+	LOG_DIR="$LOG/$LOCALMODULE/$DATE";
+	echo "create $LOG_DIR";
+	mkdir -p $LOG_DIR;
+	#if [ "$1" == "i" ]; then
+	#	IGNORE=`ls -1  | sed 's/\(.*\)\.log/\1/g'`;
+	#	echo "ignoring $IGNORE .";
+	#else
+	#	echo "don't ignore anything."
+	#fi
+	MODULE=`mvn dependency:list  | grep -e '^\[.*\].*$' | grep -o -e "pt.ist:.*$" | sed 's/^pt.ist:\(.*\):jar.*$/\1/g'`
+	for module in $MODULE; do
+		if [[ ! -z "$IGNORE" ]] && [[ "$IGNORE" == *"$module"* ]] ; then
+			echo "skipping $module";
+			continue;
+		fi
+		echo "clean installing $module";
+		goto $module;
+		if [ $? == 0 ] ; then
+			echo "building $module";
+			date >> $LOG_DIR/$module.log;
+			mvn clean install &>> $LOG_DIR/$module.log;
+			if [ $? == 0 ] ; then
+				echo "$module built successfully" &>> $LOG_DIR/$module.log;
+				echo "$module built successfully.";
+			else
+				echo "$module failed." &>> $LOG_DIR/$module.log;
+				echo "$module failed.";
+			fi
+		else
+			echo "Couldn't goto $module";
+		fi 
+	done
+	goto $LOCALMODULE;
+	unset LOCALMODULE;
+	unset DATE;
+	unset LOG_DIR;
+	unset MODULE;
+}
+
+doall() {
+	DIRS=`find $WORKSPACE_DIR -name 'pom.xml' | sed 's/\/pom.xml//g'`
+	MODULES=`for d in $DIRS; do basename $d; done`
+	for module in $MODULES; do
+		echo "goto $module";
+		goto $module;
+		if [ $? == 0 ] ; then
+			echo "building $module";
+			date &>> $LOG/$module.log;
+			mvn clean install &>> $LOG/$module.log;
+			if [ $? == 0 ] ; then
+				echo "$module built successfully." &>> $LOG/$module.log;
+				echo "$module built successfully.";
+			else
+				echo "$module failed." &>> $LOG/$module.log;
+				echo "$module failed.";
+			fi
+		else
+			echo "Couldn't goto $module";
+		fi
+	done
+	unset DIRS
+	unset MODULES
+}
+
+echo "bennu_profile loaded";
