@@ -1,9 +1,9 @@
-WORKSPACE_DIR=/home/sfbs/workspace/git2/
-LOG=/home/sfbs/logs
+WORKSPACE_DIR=/home/sfbs/workspace/svn/
+LOG_FILE=/tmp/poms
 APP=dot
 
 function goto() {
-	OUTPUT=`find $WORKSPACE_DIR -name 'pom.xml' | grep "/$1/"`
+	OUTPUT=`cat $LOG_FILE | grep "/$1/"`
 	if [ -z "$OUTPUT" ]; then
 		echo "$1 is not a module."
 		return 1;
@@ -13,15 +13,25 @@ function goto() {
 	cd $DIR
 }
 
+function loadDirs() {
+	if [ ! -e $LOG_FILE ]; then
+		echo "fill poms file $LOG_FILE"
+		find $WORKSPACE_DIR -name 'pom.xml' > $LOG_FILE
+		echo "done $LOG_FILE."
+	fi
+}
+
 function cptom() {
 	CWD=`basename $PWD`
 	rm $CATALINA_HOME/webapps/$APP/WEB-INF/lib/$CWD*.jar
 	cp target/$CWD*.jar $CATALINA_HOME/webapps/$APP/WEB-INF/lib/
+	echo "cp target/$CWD*.jar $CATALINA_HOME/webapps/$APP/WEB-INF/lib/"
 }
 
 _goto() {
 	local cur prev opts
-	dirs=`find $WORKSPACE_DIR -name 'pom.xml' | sed 's/\/pom.xml//g'`
+	loadDirs
+	dirs=`cat $LOG_FILE | sed 's/\/pom.xml//g'`
 	COMPREPLY=()
 	cur="${COMP_WORDS[COMP_CWORD]}"
 	prev="${COMP_WORDS[COMP_CWORD-1]}"
@@ -37,9 +47,10 @@ xpto () {
 }
 
 dodeps() {
+	loadDirs
 	LOCALMODULE=`basename $PWD`;
 	DATE=`date +%y%m%d_%H%M%S`;
-	LOG_DIR="$LOG/$LOCALMODULE/$DATE";
+	LOG_DIR="/home/sfbs/logs/$LOCALMODULE/$DATE";
 	echo "create $LOG_DIR";
 	mkdir -p $LOG_DIR;
 	#if [ "$1" == "i" ]; then
@@ -79,20 +90,22 @@ dodeps() {
 }
 
 doall() {
-	DIRS=`find $WORKSPACE_DIR -name 'pom.xml' | sed 's/\/pom.xml//g'`
+	rm -rf /home/sfbs/logs/*.log
+	loadDirs
+	DIRS=`cat $LOG_FILE | sed 's/\/pom.xml//g'`
 	MODULES=`for d in $DIRS; do basename $d; done`
 	for module in $MODULES; do
 		echo "goto $module";
 		goto $module;
 		if [ $? == 0 ] ; then
 			echo "building $module";
-			date &>> $LOG/$module.log;
-			mvn clean install &>> $LOG/$module.log;
+			date &>> ~/logs/$module.log;
+			mvn clean install &>> ~/logs/$module.log;
 			if [ $? == 0 ] ; then
-				echo "$module built successfully." &>> $LOG/$module.log;
+				echo "$module built successfully." &>> ~/logs/$module.log;
 				echo "$module built successfully.";
 			else
-				echo "$module failed." &>> $LOG/$module.log;
+				echo "$module failed." &>> ~/logs/$module.log;
 				echo "$module failed.";
 			fi
 		else
