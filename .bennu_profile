@@ -1,6 +1,25 @@
 WORKSPACE_DIR=/home/sfbs/workspace/svn/
 LOG_FILE=/tmp/poms
+LOGS_DIR=/home/sfbs/logs
 APP=dot
+
+
+#Fenix Sync - syncs changed jsps to target dir
+function fsync() {
+	changes=`diff -r src/main/webapp/ target/fenix-maven-1.0-SNAPSHOT/ | grep ^diff`;
+	echo $changes;
+	`echo $changes | sed 's/diff -r/cp/g'`;
+}
+function check() {
+	OUTPUT=`cat $LOG_FILE | grep "/$1/"`
+	if [ -z "$OUTPUT" ]; then
+		echo "$1 is not a module."
+		return 1;
+	fi
+	POM=`realpath $OUTPUT`
+	DIR=`echo $POM | sed 's/\/pom.xml//'`
+	echo $DIR;
+}
 
 function goto() {
 	OUTPUT=`cat $LOG_FILE | grep "/$1/"`
@@ -50,7 +69,7 @@ dodeps() {
 	loadDirs
 	LOCALMODULE=`basename $PWD`;
 	DATE=`date +%y%m%d_%H%M%S`;
-	LOG_DIR="/home/sfbs/logs/$LOCALMODULE/$DATE";
+	LOG_DIR="$LOGS_DIR/$LOCALMODULE/$DATE";
 	echo "create $LOG_DIR";
 	mkdir -p $LOG_DIR;
 	#if [ "$1" == "i" ]; then
@@ -90,7 +109,7 @@ dodeps() {
 }
 
 doall() {
-	rm -rf /home/sfbs/logs/*.log
+	rm -rf $LOGS_DIR/*.log
 	loadDirs
 	DIRS=`cat $LOG_FILE | sed 's/\/pom.xml//g'`
 	MODULES=`for d in $DIRS; do basename $d; done`
@@ -108,6 +127,24 @@ doall() {
 				echo "$module failed." &>> ~/logs/$module.log;
 				echo "$module failed.";
 			fi
+		else
+			echo "Couldn't goto $module";
+		fi
+	done
+	unset DIRS
+	unset MODULES
+}
+
+doallclean() {
+	loadDirs
+	DIRS=`cat $LOG_FILE | sed 's/\/pom.xml//g'`
+	MODULES=`for d in $DIRS; do basename $d; done`
+	for module in $MODULES; do
+		echo "goto $module";
+		goto $module;
+		if [ $? == 0 ] ; then
+			echo "mvn clean $module";
+			mvn clean;
 		else
 			echo "Couldn't goto $module";
 		fi

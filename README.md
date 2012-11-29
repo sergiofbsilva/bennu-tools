@@ -9,7 +9,7 @@ This is a set of bash functions that will help you when working with bennu modul
 * WORKSPACE_DIR - directory where the checkedout repositories are
 * LOG - directory when mvn output will be dumped
 * APP - name of the webapp deployed at tomcat
-
+* LOGS_DIR - logs directory
 ##usage
 `source .bennu_profile`
 
