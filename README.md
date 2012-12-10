@@ -18,6 +18,7 @@ This is a set of bash functions that will help you when working with bennu modul
 * cptom - copies current module target/*.jar to APP
 * dodeps - compiles current module and all dependencies
 * doall - compiles all modules at WORKSPACE_DIR
+* dodeps - compiles current module and all dependencies, using mvn -o flag
 
 ##examples
 

@@ -1,13 +1,14 @@
-WORKSPACE_DIR=/home/sfbs/workspace/git2/
-LOG=/home/sfbs/logs
-APP=dot
+WORKSPACE_DIR=/Users/joantune/Documents/Work-CIIST/workspace
+LOG=/Users/joantune/Documents/Work-CIIST/mvnLogs
+APP=bennu-dev
 
 function goto() {
-	OUTPUT=`find $WORKSPACE_DIR -name 'pom.xml' | grep "/$1/"`
+	OUTPUT=`find $WORKSPACE_DIR -name 'pom.xml' | grep "/$1/" | grep -v target | grep -v bin`
 	if [ -z "$OUTPUT" ]; then
 		echo "$1 is not a module."
 		return 1;
 	fi
+    echo $OUTPUT
 	POM=`realpath $OUTPUT`
 	DIR=`echo $POM | sed 's/\/pom.xml//'`
 	cd $DIR
@@ -36,6 +37,47 @@ xpto () {
 	echo $CWD;	
 }
 
+dodepsOffline() {
+	LOCALMODULE=`basename $PWD`;
+	DATE=`date +%y%m%d_%H%M%S`;
+	LOG_DIR="$LOG/$LOCALMODULE/$DATE";
+	echo "create $LOG_DIR";
+	mkdir -p $LOG_DIR;
+	#if [ "$1" == "i" ]; then
+	#	IGNORE=`ls -1  | sed 's/\(.*\)\.log/\1/g'`;
+	#	echo "ignoring $IGNORE .";
+	#else
+	#	echo "don't ignore anything."
+	#fi
+	MODULE=`mvn -o dependency:list  | grep -e '^\[.*\].*$' | grep -o -e "pt.ist:.*$" | sed 's/^pt.ist:\(.*\):jar.*$/\1/g'`
+	for module in $MODULE; do
+		if [[ ! -z "$IGNORE" ]] && [[ "$IGNORE" == *"$module"* ]] ; then
+			echo "skipping $module";
+			continue;
+		fi
+		echo "clean installing $module";
+		goto $module;
+		if [ $? == 0 ] ; then
+			echo "building $module";
+			date >> $LOG_DIR/$module.log;
+			mvn -o clean install;
+			if [ $? == 0 ] ; then
+				echo "$module built successfully" ;
+				echo "$module built successfully.";
+			else
+				echo "$module failed.";
+				echo "$module failed.";
+			fi
+		else
+			echo "Couldn't goto $module";
+		fi 
+	done
+	goto $LOCALMODULE;
+	unset LOCALMODULE;
+	unset DATE;
+	unset LOG_DIR;
+	unset MODULE;
+}
 dodeps() {
 	LOCALMODULE=`basename $PWD`;
 	DATE=`date +%y%m%d_%H%M%S`;
@@ -59,12 +101,12 @@ dodeps() {
 		if [ $? == 0 ] ; then
 			echo "building $module";
 			date >> $LOG_DIR/$module.log;
-			mvn clean install &>> $LOG_DIR/$module.log;
+			mvn clean install;
 			if [ $? == 0 ] ; then
-				echo "$module built successfully" &>> $LOG_DIR/$module.log;
+				echo "$module built successfully" ;
 				echo "$module built successfully.";
 			else
-				echo "$module failed." &>> $LOG_DIR/$module.log;
+				echo "$module failed.";
 				echo "$module failed.";
 			fi
 		else
@@ -86,13 +128,13 @@ doall() {
 		goto $module;
 		if [ $? == 0 ] ; then
 			echo "building $module";
-			date &>> $LOG/$module.log;
-			mvn clean install &>> $LOG/$module.log;
+			date;
+			mvn clean install;
 			if [ $? == 0 ] ; then
-				echo "$module built successfully." &>> $LOG/$module.log;
+				echo "$module built successfully.";
 				echo "$module built successfully.";
 			else
-				echo "$module failed." &>> $LOG/$module.log;
+				echo "$module failed.";
 				echo "$module failed.";
 			fi
 		else
