@@ -37,6 +37,55 @@ xpto () {
 	echo $CWD;	
 }
 
+doFollowing () {
+    doOffline=false;
+    if $doOffline
+        then 
+          echo do offline 1st if
+        fi
+    if [[ "$@" == -* ]]
+        then
+            #echo found a -
+            if [[ "$@" == -o\ * ]]
+                then
+                    #echo "got a full -o with a space"
+                    doOffline=true;
+                else 
+                    echo Usage:
+                    echo $0 [-o] module1 [...module2 moduleN]
+                    echo compiles the given modules with mvn clean install.
+                    echo if the optional argument -o is given, the param -o is passed to mvn, so that it operates offline
+                    return;
+                fi
+        fi
+        
+        if $doOffline
+           then
+              #echo do offline 2nd if
+              mvnCommand="mvn -o clean install"
+           else 
+              mvnCommand="mvn clean install"
+           fi
+        for argument in "$@"
+        do
+            if [[ $argument == -* ]]
+                then
+                    echo "$argument" ignored as it starts with a -;
+                else 
+                    echo compiling "$argument" with "$mvnCommand";
+                    if goto $argument && $mvnCommand;
+                        then
+                          echo "** $argument compilation successfull **"
+                        else
+                          echo "** failed to compile $argument. Arguments were $@ **"
+                          return 1;
+                        fi
+                fi
+        done
+
+        return;
+}
+
 dodepsOffline() {
 	LOCALMODULE=`basename $PWD`;
 	DATE=`date +%y%m%d_%H%M%S`;
